@@ -1,6 +1,6 @@
 from django.apps import AppConfig
 
 
-class TeamenshuConfig(AppConfig):
+class teamenshuConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "teamenshuapp"
