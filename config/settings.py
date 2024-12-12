@@ -39,7 +39,6 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django.contrib.sites",
     "teamenshu.apps.TeamenshuConfig",
-    "teamenshu",
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
