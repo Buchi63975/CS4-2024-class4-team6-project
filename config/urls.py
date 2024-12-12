@@ -24,7 +24,7 @@ urlpatterns = (
     [
         path("admin/", admin.site.urls),
         path("accounts/", include("allauth.urls")),
-        path("", include("snsapp.urls")),
+        path("", include("teamenshu.urls")),
     ]
     + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
