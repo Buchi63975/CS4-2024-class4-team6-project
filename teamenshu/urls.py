@@ -12,7 +12,8 @@ from .views import (
     FollowList,
     LikeDetail,
 )
-
+from django.urls import path
+from . import views
 
 urlpatterns = [
     path("", Home.as_view(), name="home"),
@@ -26,4 +27,6 @@ urlpatterns = [
     path("follow-home/<int:pk>", FollowHome.as_view(), name="follow-home"),
     path("follow-detail/<int:pk>", FollowDetail.as_view(), name="follow-detail"),
     path("follow-list/", FollowList.as_view(), name="follow-list"),
+    path("send_message/", views.send_message, name="send_message"),
+    path("inbox/", views.inbox, name="inbox"),
 ]

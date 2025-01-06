@@ -10,8 +10,12 @@ from django.views.generic import (
 from django.urls import reverse_lazy
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.models import User
-
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import get_object_or_404
+from .models import Follow, Message
+from .forms import MessageForm
 from .models import Post, Connection
+import logging
 
 
 class Home(LoginRequiredMixin, ListView):
@@ -190,3 +194,44 @@ class FollowList(LoginRequiredMixin, ListView):
         context = super().get_context_data(*args, **kwargs)
         context["connection"] = Connection.objects.get_or_create(user=self.request.user)
         return context
+
+
+logger = logging.getLogger(__name__)
+
+
+@login_required
+def send_message(request):
+    """Send a direct message to a user."""
+    if request.method == "POST":
+        form = MessageForm(request.POST)
+        if form.is_valid():
+            message = form.save(commit=False)
+            message.sender = request.user
+
+            # Check if the sender follows the receiver
+            if Follow.objects.filter(
+                follower=request.user, followee=message.receiver
+            ).exists():
+                message.save()
+                messages.success(request, "Message sent successfully!")
+                return redirect("inbox")  # Redirect to the inbox or other page
+            else:
+                form.add_error("receiver", "You can only message users you follow.")
+                logger.warning(
+                    f"User {request.user.username} attempted to message {message.receiver.username} without following."
+                )
+        else:
+            logger.error(
+                f"Message form validation failed for user {request.user.username}. Errors: {form.errors}"
+            )
+    else:
+        form = MessageForm()
+
+    return render(request, "send_message.html", {"form": form})
+
+
+@login_required
+def inbox(request):
+    """View the inbox of the logged-in user."""
+    messages = Message.objects.filter(receiver=request.user).order_by("-timestamp")
+    return render(request, "inbox.html", {"messages": messages})

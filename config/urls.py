@@ -25,6 +25,7 @@ urlpatterns = (
         path("admin/", admin.site.urls),
         path("accounts/", include("allauth.urls")),
         path("", include("teamenshu.urls")),
+        path("messages/", include("teamenshu.urls")),  # アプリのurls.pyをインクルード
     ]
     + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
