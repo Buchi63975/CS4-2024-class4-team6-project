@@ -1,22 +1,9 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Inbox</title>
-  </head>
-  <body>
-    <h1>Your Inbox</h1>
-    <ul>
-      {% for message in messages %}
-      <li>
-        <strong>From:</strong> {{ message.sender.username }}<br />
-        <strong>Content:</strong> {{ message.content }}<br />
-        <strong>Received:</strong> {{ message.timestamp }}
-      </li>
-      {% empty %}
-      <li>No messages in your inbox.</li>
-      {% endfor %}
-    </ul>
-  </body>
-</html>
+{% if messages %} {% for message in messages %}
+<div>
+  <p>From: {{ message.sender.username }}</p>
+  <p>Content: {{ message.content }}</p>
+  <p>Time: {{ message.timestamp }}</p>
+</div>
+{% endfor %} {% else %}
+<p>No messages.</p>
+{% endif %}

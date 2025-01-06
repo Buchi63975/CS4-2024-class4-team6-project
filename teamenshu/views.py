@@ -16,6 +16,8 @@ from .models import Follow, Message
 from .forms import MessageForm
 from .models import Post, Connection
 import logging
+from django.contrib import messages
+from django.db.models import Q
 
 
 class Home(LoginRequiredMixin, ListView):
@@ -201,32 +203,16 @@ logger = logging.getLogger(__name__)
 
 @login_required
 def send_message(request):
-    """Send a direct message to a user."""
     if request.method == "POST":
         form = MessageForm(request.POST)
         if form.is_valid():
             message = form.save(commit=False)
             message.sender = request.user
-
-            # Check if the sender follows the receiver
-            if Follow.objects.filter(
-                follower=request.user, followee=message.receiver
-            ).exists():
-                message.save()
-                messages.success(request, "Message sent successfully!")
-                return redirect("inbox")  # Redirect to the inbox or other page
-            else:
-                form.add_error("receiver", "You can only message users you follow.")
-                logger.warning(
-                    f"User {request.user.username} attempted to message {message.receiver.username} without following."
-                )
-        else:
-            logger.error(
-                f"Message form validation failed for user {request.user.username}. Errors: {form.errors}"
-            )
+            message.save()
+            messages.success(request, "Message sent successfully!")
+            return redirect("inbox")
     else:
         form = MessageForm()
-
     return render(request, "send_message.html", {"form": form})
 
 
@@ -235,3 +221,26 @@ def inbox(request):
     """View the inbox of the logged-in user."""
     messages = Message.objects.filter(receiver=request.user).order_by("-timestamp")
     return render(request, "inbox.html", {"messages": messages})
+
+
+@login_required
+def chat(request, user_id):
+    other_user = get_object_or_404(User, id=user_id)
+    messages = Message.objects.filter(
+        (
+            Q(sender=request.user, receiver=other_user)
+            | Q(sender=other_user, receiver=request.user)
+        )
+    ).order_by("timestamp")
+
+    if request.method == "POST":
+        content = request.POST.get("content")
+        if content:
+            Message.objects.create(
+                sender=request.user, receiver=other_user, content=content
+            )
+            return redirect("chat", user_id=user_id)
+
+    return render(
+        request, "chat.html", {"other_user": other_user, "messages": messages}
+    )

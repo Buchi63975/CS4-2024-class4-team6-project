@@ -29,4 +29,5 @@ urlpatterns = [
     path("follow-list/", FollowList.as_view(), name="follow-list"),
     path("send_message/", views.send_message, name="send_message"),
     path("inbox/", views.inbox, name="inbox"),
+    path("chat/<int:user_id>/", views.chat, name="chat"),
 ]
