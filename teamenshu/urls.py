@@ -11,6 +11,7 @@ from .views import (
     FollowDetail,
     FollowList,
     LikeDetail,
+    PostDetailView,
 )
 from teamenshu import views
 
@@ -39,4 +40,5 @@ urlpatterns = [
         views.send_message,
         name="send_message",
     ),
+    path('detail/<int:pk>/', PostDetailView.as_view(), name='detail'),
 ]

@@ -384,3 +384,33 @@ def get_messages(request, username):
         except Exception as e:
             logger.error(f"Error creating message: {str(e)}")
             return JsonResponse({"error": "サーバーエラーが発生しました"}, status=500)
+
+from django.shortcuts import render, get_object_or_404, redirect
+from django.views import View
+from .models import Post, Comment
+from .forms import CommentForm
+
+class PostDetailView(View):
+    def get(self, request, pk):
+        post = get_object_or_404(Post, pk=pk)
+        comments = post.comments.filter(parent__isnull=True)
+        comment_form = CommentForm()
+        return render(request, 'detail.html', {
+            'object': post,
+            'comments': comments,
+            'comment_form': comment_form,
+        })
+
+    def post(self, request, pk):
+        post = get_object_or_404(Post, pk=pk)
+        form = CommentForm(request.POST)
+        if form.is_valid():
+            parent_id = request.POST.get('parent_id')
+            parent = Comment.objects.filter(id=parent_id).first() if parent_id else None
+            Comment.objects.create(
+                post=post,
+                user=request.user,
+                content=form.cleaned_data['content'],
+                parent=parent,
+            )
+        return redirect('detail', pk=pk)

@@ -28,6 +28,49 @@
         <a href="{% url 'update' object.pk %}" class="btn btn-primary ms-3" tabindex="-1" role="button" aria-disabled="true">編集</a>
         <a href="{% url 'delete' object.pk %}" class="btn btn-danger ms-3" tabindex="-1" role="button" aria-disabled="true">削除</a>
         {% endif %}
+
+        <!-- コメントとリプライのセクション -->
+    <div class="mt-4">
+        <h5>コメント一覧</h5>
+        <div class="comments">
+            {% for comment in comments %}
+            <div class="comment mb-3 p-3 border rounded">
+                <p><strong>{{ comment.user }}</strong>: {{ comment.content }}</p>
+                <p class="text-muted small">投稿日: {{ comment.created_at }}</p>
+                
+                <!-- リプライ表示 -->
+                <div class="replies ms-4">
+                    {% for reply in comment.replies.all %}
+                    <div class="reply p-2 border rounded bg-light mt-2">
+                        <p><strong>{{ reply.user }}</strong>: {{ reply.content }}</p>
+                        <p class="text-muted small">投稿日: {{ reply.created_at }}</p>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <!-- リプライ入力フォーム -->
+                <a href="javascript:void(0);" class="btn btn-link p-0" onclick="setReplyParent('{{ comment.id }}')">返信</a>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- 新規コメント入力フォーム -->
+        <h6 class="mt-4">コメントを追加</h6>
+        <form method="post">
+            {% csrf_token %}
+            {{ comment_form.content }}
+            <button type="submit" class="btn btn-primary mt-2">投稿</button>
+            <input type="hidden" name="parent_id" id="parent_id" value="">
+        </form>
+
     </div>
 </div>
+
+<script>
+    function setReplyParent(commentId) {
+        document.getElementById('parent_id').value = commentId;
+        document.querySelector('textarea').focus();
+    }
+    </script>
+
 {% endblock content %}
