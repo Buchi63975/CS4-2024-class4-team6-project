@@ -1,0 +1,120 @@
+body {
+  background-color: #f0f2f5;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
+  margin: 0;
+  padding-top: 100px; /* 56pxから100pxに増加 */
+}
+
+/* ナビゲーションバーのカスタマイズ */
+.navbar {
+  background-color: white !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  position: fixed;
+  top: 0;
+  width: 100%;
+  z-index: 1000;
+  padding: 1rem; /* パディングも少し増加 */
+  min-height: 70px; /* 最小の高さを設定 */
+}
+
+.navbar-brand {
+  font-size: 24px;
+  font-weight: 600;
+  color: #1a73e8 !important;
+}
+
+.nav-link {
+  color: #65676b !important;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  margin: 0 0.2rem;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.nav-link:hover {
+  background-color: #f2f2f2;
+  color: #1a73e8 !important;
+}
+
+/* 投稿ボタン */
+.nav-link.btn-success {
+  background-color: #1a73e8 !important;
+  border: none;
+  color: white !important;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-weight: 600;
+}
+
+.nav-link.btn-success:hover {
+  background-color: #1557b0 !important;
+  transform: translateY(-1px);
+}
+
+/* ユーザー名表示 */
+.container-fluid > div:last-child {
+  color: #1a73e8;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+}
+
+/* メインコンテンツエリア */
+.container {
+  margin-top: 120px; /* この値は固定のまま */
+  padding: 20px;
+  max-width: 1200px;
+}
+
+/* メッセージ関連リンク */
+a[href*="message"],
+a[href*="inbox"] {
+  color: #1a73e8;
+  text-decoration: none;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  transition: all 0.3s ease;
+}
+
+a[href*="message"]:hover,
+a[href*="inbox"]:hover {
+  background-color: #e8f0fe;
+  color: #1557b0;
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 992px) {
+  .navbar-nav {
+    padding: 1rem 0;
+  }
+
+  .nav-link {
+    margin: 0.2rem 0;
+  }
+
+  .container {
+    margin-top: 100px;
+  }
+}
+
+/* カスタムアニメーション */
+.navbar-nav a {
+  position: relative;
+}
+
+.navbar-nav a::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 2px;
+  background-color: #1a73e8;
+  transition: all 0.3s ease;
+}
+
+.navbar-nav a:hover::after {
+  width: 100%;
+  left: 0;
+}

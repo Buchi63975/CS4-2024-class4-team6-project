@@ -1,0 +1,86 @@
+{% extends 'base.html' %} {% block content %}
+<div class="chat-inbox">
+  <h2>Messages</h2>
+  <div class="conversation-list">
+    {% for chat in chat_list %}
+    <a href="{% url 'chat_room' chat.other_user %}" class="conversation-item">
+      <div class="user-info">
+        <h3>{{ chat.other_user.username }}</h3>
+        <p>{{ chat.latest_message.content|truncatechars:50 }}</p>
+        <small>{{ chat.latest_message.timestamp|timesince }} ago</small>
+      </div>
+    </a>
+    {% empty %}
+    <p>No conversations yet.</p>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
+
+<!-- templates/chat/room.html -->
+{% extends 'base.html' %} {% block content %}
+<div class="chat-room">
+  <div class="message-container" id="messageContainer">
+    {% for message in messages %}
+    <div
+      class="message {% if message.sender == request.user %}sent{% else %}received{% endif %}"
+    >
+      <div class="message-content">{{ message.content }}</div>
+      <div class="message-time">{{ message.timestamp|time }}</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="message-form">
+    <form id="messageForm">
+      {% csrf_token %}
+      <input type="text" id="messageInput" placeholder="Type a message..." />
+      <button type="submit">Send</button>
+    </form>
+  </div>
+</div>
+
+<script>
+  document.getElementById('messageForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const messageInput = document.getElementById('messageInput');
+      const content = messageInput.value.trim();
+
+      if (!content) return;
+
+      try {
+          const response = await fetch('{% url "send_message" %}', {
+              method: 'POST',
+              headers: {
+                  'Content-Type': 'application/json',
+                  'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+              },
+              body: JSON.stringify({
+                  receiver_id: {{ other_user_id }},
+                  content: content
+              })
+          });
+
+          const data = await response.json();
+          if (data.status === 'success') {
+              // Add message to chat
+              const messageContainer = document.getElementById('messageContainer');
+              messageContainer.innerHTML += `
+                  <div class="message sent">
+                      <div class="message-content">${data.message.content}</div>
+                      <div class="message-time">${data.message.timestamp}</div>
+                  </div>
+              `;
+              messageContainer.scrollTop = messageContainer.scrollHeight;
+              messageInput.value = '';
+          }
+      } catch (error) {
+          console.error('Error sending message:', error);
+      }
+  });
+
+  // Auto-scroll to bottom on page load
+  const messageContainer = document.getElementById('messageContainer');
+  messageContainer.scrollTop = messageContainer.scrollHeight;
+</script>
+{% endblock %}

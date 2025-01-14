@@ -12,8 +12,7 @@ from .views import (
     FollowList,
     LikeDetail,
 )
-from django.urls import path
-from . import views
+from teamenshu import views
 
 urlpatterns = [
     path("", Home.as_view(), name="home"),
@@ -26,8 +25,18 @@ urlpatterns = [
     path("like-detail/<int:pk>", LikeDetail.as_view(), name="like-detail"),
     path("follow-home/<int:pk>", FollowHome.as_view(), name="follow-home"),
     path("follow-detail/<int:pk>", FollowDetail.as_view(), name="follow-detail"),
-    path("follow-list/", FollowList.as_view(), name="follow-list"),
-    path("send_message/", views.send_message, name="send_message"),
-    path("inbox/", views.inbox, name="inbox"),
-    path("chat/<int:user_id>/", views.chat, name="chat"),
+    path("messages/follow-list/", FollowList.as_view(), name="follow-list"),
+    path("messages/mypost/", MyPost.as_view(), name="mypost"),
+    path(
+        "direct_messages/<str:username>/", views.direct_messages, name="direct_messages"
+    ),
+    path("inbox/", views.chat_inbox, name="chat_inbox"),
+    path("chat/<int:other_user_id>/", views.chat_room, name="chat_room"),
+    path("send-message/", views.send_message, name="send_message"),
+    path("api/messages/<str:username>/", views.get_messages, name="get_messages"),
+    path(
+        "api/messages/send/<str:recipient_username>/",
+        views.send_message,
+        name="send_message",
+    ),
 ]

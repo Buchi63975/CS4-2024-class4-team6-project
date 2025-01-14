@@ -19,6 +19,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from teamenshu import views
 
 urlpatterns = (
     [
@@ -26,6 +27,10 @@ urlpatterns = (
         path("accounts/", include("allauth.urls")),
         path("", include("teamenshu.urls")),
         path("messages/", include("teamenshu.urls")),  # アプリのurls.pyをインクルード
+        path("", views.index, name="index"),
+        path("inbox/", views.chat_inbox, name="chat_inbox"),
+        path("chat/<int:other_user_id>/", views.chat_room, name="chat_room"),
+        path("send-message/", views.send_message, name="send_message"),
     ]
     + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

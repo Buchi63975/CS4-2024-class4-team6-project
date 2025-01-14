@@ -18,6 +18,16 @@ from .models import Post, Connection
 import logging
 from django.contrib import messages
 from django.db.models import Q
+from django.http import JsonResponse
+import json
+from django.core.serializers.json import DjangoJSONEncoder
+from django.core.serializers import serialize
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import csrf_exempt
+from django.core.exceptions import PermissionDenied
+from django.contrib.auth import get_user_model
+from .models import DirectMessage
+from django.db import models
 
 
 class Home(LoginRequiredMixin, ListView):
@@ -202,45 +212,175 @@ logger = logging.getLogger(__name__)
 
 
 @login_required
-def send_message(request):
-    if request.method == "POST":
-        form = MessageForm(request.POST)
-        if form.is_valid():
-            message = form.save(commit=False)
-            message.sender = request.user
-            message.save()
-            messages.success(request, "Message sent successfully!")
-            return redirect("inbox")
-    else:
-        form = MessageForm()
-    return render(request, "send_message.html", {"form": form})
+def chat_inbox(request):
+    # Get unique conversations for the current user
+    conversations = (
+        Message.objects.filter(Q(sender=request.user) | Q(receiver=request.user))
+        .values("sender", "receiver")
+        .distinct()
+    )
 
-
-@login_required
-def inbox(request):
-    """View the inbox of the logged-in user."""
-    messages = Message.objects.filter(receiver=request.user).order_by("-timestamp")
-    return render(request, "inbox.html", {"messages": messages})
-
-
-@login_required
-def chat(request, user_id):
-    other_user = get_object_or_404(User, id=user_id)
-    messages = Message.objects.filter(
-        (
+    # Get the latest message for each conversation
+    chat_list = []
+    for conv in conversations:
+        other_user = (
+            conv["receiver"] if conv["sender"] == request.user.id else conv["sender"]
+        )
+        latest_message = Message.objects.filter(
             Q(sender=request.user, receiver=other_user)
             | Q(sender=other_user, receiver=request.user)
-        )
+        ).latest("timestamp")
+
+        chat_list.append({"other_user": other_user, "latest_message": latest_message})
+
+    return render(request, "chat/inbox.html", {"chat_list": chat_list})
+
+
+@login_required
+def chat_room(request, other_user_id):
+    messages = Message.objects.filter(
+        Q(sender=request.user, receiver_id=other_user_id)
+        | Q(sender_id=other_user_id, receiver=request.user)
     ).order_by("timestamp")
 
-    if request.method == "POST":
-        content = request.POST.get("content")
-        if content:
-            Message.objects.create(
-                sender=request.user, receiver=other_user, content=content
-            )
-            return redirect("chat", user_id=user_id)
+    # Mark messages as read
+    Message.objects.filter(
+        sender_id=other_user_id, receiver=request.user, is_read=False
+    ).update(is_read=True)
 
     return render(
-        request, "chat.html", {"other_user": other_user, "messages": messages}
+        request,
+        "chat/room.html",
+        {"messages": messages, "other_user_id": other_user_id},
     )
+
+
+@login_required
+def send_message(request):
+    if request.method == "POST":
+        data = json.loads(request.body)
+        receiver_id = data.get("receiver_id")
+        content = data.get("content")
+
+        message = DirectMessage.objects.create(
+            sender=request.user,
+            recipient_id=receiver_id,  # 'recipient'に変更
+            message=content,
+        )
+
+        return JsonResponse(
+            {
+                "status": "success",
+                "message": {
+                    "id": message.id,
+                    "content": message.content,
+                    "timestamp": message.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+                    "sender": message.sender.username,
+                },
+            }
+        )
+    return JsonResponse({"status": "error"}, status=400)
+
+
+def index(request):
+    return render(request, "index.html")
+
+
+@login_required
+def direct_messages(request, username):
+    recipient = get_object_or_404(get_user_model(), username=username)
+
+    # 自分自身へのDMは許可
+    if request.user.username == username:
+        return render(
+            request,
+            "dm.html",
+            {"recipient_username": username, "recipient": recipient},
+        )
+
+    # フォロー関係のチェック
+    my_connection = Connection.objects.get_or_create(user=request.user)[0]
+    if recipient not in my_connection.following.all():
+        messages.warning(request, "フォローしているユーザーのみDMを送信できます")
+        return redirect("home")
+
+    return render(
+        request,
+        "dm.html",
+        {"recipient_username": username, "recipient": recipient},
+    )
+
+
+@login_required
+@csrf_exempt
+def get_messages(request, username):
+    if request.method == "GET":
+        # メッセージの取得
+        messages_list = DirectMessage.objects.filter(
+            (
+                Q(sender=request.user, recipient__username=username)
+                | Q(sender__username=username, recipient=request.user)
+            )
+        ).order_by("created_at")
+
+        logger.debug(f"Messages for {username}: {messages_list}")
+
+        return JsonResponse(
+            [
+                {
+                    "id": msg.id,
+                    "message": msg.message,
+                    "from": msg.sender.username,
+                    "timestamp": msg.created_at.isoformat(),
+                }
+                for msg in messages_list
+            ],
+            safe=False,
+        )
+
+    elif request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            message_content = data.get("message", "").strip()
+            if not message_content:
+                return JsonResponse(
+                    {"error": "メッセージを入力してください"}, status=400
+                )
+
+            # フォロー関係のチェック
+            recipient = get_object_or_404(get_user_model(), username=username)
+            my_connection = Connection.objects.get_or_create(user=request.user)[0]
+            followed_users = my_connection.following.all()
+
+            # ログを追加して、送信先がフォロー関係にあるか確認
+            logger.debug(
+                f"User {request.user.username} is following: {[user.username for user in followed_users]}"
+            )
+
+            if recipient not in followed_users:
+                return JsonResponse(
+                    {"error": "フォローしているユーザーのみDMを送信できます"},
+                    status=403,
+                )
+
+            # メッセージの作成
+            message = DirectMessage.objects.create(
+                sender=request.user,
+                recipient=recipient,
+                message=message_content,
+                is_read=False,  # 明示的にis_readを設定
+            )
+
+            return JsonResponse(
+                {
+                    "id": message.id,
+                    "message": message.message,
+                    "from": message.sender.username,
+                    "timestamp": message.created_at.isoformat(),
+                }
+            )
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+        except Exception as e:
+            logger.error(f"Error creating message: {str(e)}")
+            return JsonResponse({"error": "サーバーエラーが発生しました"}, status=500)

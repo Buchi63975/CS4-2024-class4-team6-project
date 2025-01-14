@@ -1,9 +1,0 @@
-{% if messages %} {% for message in messages %}
-<div>
-  <p>From: {{ message.sender.username }}</p>
-  <p>Content: {{ message.content }}</p>
-  <p>Time: {{ message.timestamp }}</p>
-</div>
-{% endfor %} {% else %}
-<p>No messages.</p>
-{% endif %}
