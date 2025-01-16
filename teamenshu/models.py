@@ -2,6 +2,8 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.conf import settings
 from django.contrib.auth import get_user_model
+import datetime
+from django.utils import timezone
 
 
 # Create your models here.
@@ -46,30 +48,26 @@ class Follow(models.Model):
 
 class Message(models.Model):
     sender = models.ForeignKey(
-        settings.AUTH_USER_MODEL, related_name="message_sent", on_delete=models.CASCADE
+        User, on_delete=models.CASCADE, related_name="sent_messages"
     )
-    receiver = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        related_name="message_received",
-        on_delete=models.CASCADE,
+    recipient = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="received_messages"
     )
-    content = models.TextField()
-    timestamp = models.DateTimeField(auto_now_add=True)
+    message = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
     is_read = models.BooleanField(default=False)
+    content = models.TextField()  # メッセージの内容
 
     def __str__(self):
-        return f"From {self.sender} to {self.receiver} at {self.timestamp}"
-
-    class Meta:
-        ordering = ["timestamp"]
+        return f"From {self.sender.username} to {self.recipient.username} at {self.created_at}"
 
 
 class DirectMessage(models.Model):
     sender = models.ForeignKey(
-        User, related_name="sent_messages", on_delete=models.CASCADE
+        User, related_name="sent_direct_messages", on_delete=models.CASCADE
     )
     recipient = models.ForeignKey(
-        User, related_name="received_messages", on_delete=models.CASCADE
+        User, related_name="received_direct_messages", on_delete=models.CASCADE
     )
     message = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
@@ -83,17 +81,29 @@ class DirectMessage(models.Model):
     def __str__(self):
         return f"Message from {self.sender} to {self.recipient} at {self.created_at}"
 
-from django.db import models
-from django.contrib.auth.models import User
 
 class Comment(models.Model):
-    post = models.ForeignKey('Post', on_delete=models.CASCADE, related_name='comments')
+    post = models.ForeignKey("Post", on_delete=models.CASCADE, related_name="comments")
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     content = models.TextField()
     parent = models.ForeignKey(
-        'self', on_delete=models.CASCADE, null=True, blank=True, related_name='replies'
+        "self", on_delete=models.CASCADE, null=True, blank=True, related_name="replies"
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.user.username}: {self.content[:20]}"
+
+
+class ChatMessage(models.Model):
+    sender = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="sent_chat_messages"
+    )
+    receiver = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="received_chat_messages"
+    )
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"From: {self.sender.username} To: {self.receiver.username} - {self.content}"

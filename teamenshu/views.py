@@ -28,6 +28,9 @@ from django.core.exceptions import PermissionDenied
 from django.contrib.auth import get_user_model
 from .models import DirectMessage
 from django.db import models
+from .models import Post, Comment
+from .forms import CommentForm
+from django.views.decorators.csrf import csrf_protect
 
 
 class Home(LoginRequiredMixin, ListView):
@@ -238,7 +241,7 @@ def chat_inbox(request):
 
 @login_required
 def chat_room(request, other_user_id):
-    messages = Message.objects.filter(
+    chat_messages = Message.objects.filter(
         Q(sender=request.user, receiver_id=other_user_id)
         | Q(sender_id=other_user_id, receiver=request.user)
     ).order_by("timestamp")
@@ -256,161 +259,92 @@ def chat_room(request, other_user_id):
 
 
 @login_required
-def send_message(request):
+def direct_messages(request, recipient_username):
+    # ユーザーを取得（usernameで検索）
+    recipient_user = get_object_or_404(User, username=recipient_username)
+
+    # 自分は除外した全ユーザーを取得
+    all_users = User.objects.exclude(id=request.user.id)
+
+    return render(
+        request,
+        "messages/direct_messages.html",
+        {
+            "all_users": all_users,
+            "recipient_user": recipient_user,  # 特定のユーザーをテンプレートに渡す
+        },
+    )
+
+
+@login_required
+def send_message(request, recipient_username):
     if request.method == "POST":
-        data = json.loads(request.body)
-        receiver_id = data.get("receiver_id")
-        content = data.get("content")
+        recipient = get_object_or_404(User, username=recipient_username)
+        message_text = request.POST.get("message", "")
 
-        message = DirectMessage.objects.create(
-            sender=request.user,
-            recipient_id=receiver_id,  # 'recipient'に変更
-            message=content,
-        )
-
+        if message_text.strip():
+            # メッセージ作成
+            Message.objects.create(
+                sender=request.user,
+                recipient=recipient,
+                message=message_text,
+            )
+            return JsonResponse(
+                {"success": True, "message": "メッセージが送信されました。"}
+            )
         return JsonResponse(
-            {
-                "status": "success",
-                "message": {
-                    "id": message.id,
-                    "content": message.content,
-                    "timestamp": message.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
-                    "sender": message.sender.username,
-                },
-            }
+            {"success": False, "message": "メッセージを入力してください。"}
         )
-    return JsonResponse({"status": "error"}, status=400)
+
+
+@login_required
+def get_messages(request, recipient_username):
+    recipient = get_object_or_404(User, username=recipient_username)
+    print(f"Fetching messages between {request.user.username} and {recipient_username}")
+    # 選択したユーザーとのメッセージ履歴を取得
+    messages = Message.objects.filter(
+        sender=request.user, recipient=recipient
+    ) | Message.objects.filter(sender=recipient, recipient=request.user)
+    messages = messages.order_by("created_at")
+
+    # デバッグ用のログを追加
+    print(f"Found {messages.count()} messages")
+    return JsonResponse({"messages": list(messages.values())})
 
 
 def index(request):
     return render(request, "index.html")
 
 
-@login_required
-def direct_messages(request, username):
-    recipient = get_object_or_404(get_user_model(), username=username)
-
-    # 自分自身へのDMは許可
-    if request.user.username == username:
-        return render(
-            request,
-            "dm.html",
-            {"recipient_username": username, "recipient": recipient},
-        )
-
-    # フォロー関係のチェック
-    my_connection = Connection.objects.get_or_create(user=request.user)[0]
-    if recipient not in my_connection.following.all():
-        messages.warning(request, "フォローしているユーザーのみDMを送信できます")
-        return redirect("home")
-
-    return render(
-        request,
-        "dm.html",
-        {"recipient_username": username, "recipient": recipient},
-    )
-
-
-@login_required
-@csrf_exempt
-def get_messages(request, username):
-    if request.method == "GET":
-        # メッセージの取得
-        messages_list = DirectMessage.objects.filter(
-            (
-                Q(sender=request.user, recipient__username=username)
-                | Q(sender__username=username, recipient=request.user)
-            )
-        ).order_by("created_at")
-
-        logger.debug(f"Messages for {username}: {messages_list}")
-
-        return JsonResponse(
-            [
-                {
-                    "id": msg.id,
-                    "message": msg.message,
-                    "from": msg.sender.username,
-                    "timestamp": msg.created_at.isoformat(),
-                }
-                for msg in messages_list
-            ],
-            safe=False,
-        )
-
-    elif request.method == "POST":
-        try:
-            data = json.loads(request.body)
-            message_content = data.get("message", "").strip()
-            if not message_content:
-                return JsonResponse(
-                    {"error": "メッセージを入力してください"}, status=400
-                )
-
-            # フォロー関係のチェック
-            recipient = get_object_or_404(get_user_model(), username=username)
-            my_connection = Connection.objects.get_or_create(user=request.user)[0]
-            followed_users = my_connection.following.all()
-
-            # ログを追加して、送信先がフォロー関係にあるか確認
-            logger.debug(
-                f"User {request.user.username} is following: {[user.username for user in followed_users]}"
-            )
-
-            if recipient not in followed_users:
-                return JsonResponse(
-                    {"error": "フォローしているユーザーのみDMを送信できます"},
-                    status=403,
-                )
-
-            # メッセージの作成
-            message = DirectMessage.objects.create(
-                sender=request.user,
-                recipient=recipient,
-                message=message_content,
-                is_read=False,  # 明示的にis_readを設定
-            )
-
-            return JsonResponse(
-                {
-                    "id": message.id,
-                    "message": message.message,
-                    "from": message.sender.username,
-                    "timestamp": message.created_at.isoformat(),
-                }
-            )
-        except json.JSONDecodeError:
-            return JsonResponse({"error": "Invalid JSON"}, status=400)
-        except Exception as e:
-            logger.error(f"Error creating message: {str(e)}")
-            return JsonResponse({"error": "サーバーエラーが発生しました"}, status=500)
-
-from django.shortcuts import render, get_object_or_404, redirect
-from django.views import View
-from .models import Post, Comment
-from .forms import CommentForm
-
 class PostDetailView(View):
     def get(self, request, pk):
         post = get_object_or_404(Post, pk=pk)
         comments = post.comments.filter(parent__isnull=True)
         comment_form = CommentForm()
-        return render(request, 'detail.html', {
-            'object': post,
-            'comments': comments,
-            'comment_form': comment_form,
-        })
+        return render(
+            request,
+            "detail.html",
+            {
+                "object": post,
+                "comments": comments,
+                "comment_form": comment_form,
+            },
+        )
 
     def post(self, request, pk):
         post = get_object_or_404(Post, pk=pk)
         form = CommentForm(request.POST)
         if form.is_valid():
-            parent_id = request.POST.get('parent_id')
+            parent_id = request.POST.get("parent_id")
             parent = Comment.objects.filter(id=parent_id).first() if parent_id else None
             Comment.objects.create(
                 post=post,
                 user=request.user,
-                content=form.cleaned_data['content'],
+                content=form.cleaned_data["content"],
                 parent=parent,
             )
-        return redirect('detail', pk=pk)
+        return redirect("detail", pk=pk)
+
+
+def new_view(request):
+    return render(request, "new.html")

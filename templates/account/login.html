@@ -1,0 +1,13 @@
+{% extends "base.html" %} {% block content %}
+<div class="login-container">
+  <h2>ログイン</h2>
+  <form method="post">
+    {% csrf_token %} {{ form.as_p }}
+    <button type="submit" class="btn btn-primary">ログイン</button>
+  </form>
+  <p>
+    アカウントをお持ちでない方は
+    <a href="{% url 'account_signup' %}">新規登録</a>
+  </p>
+</div>
+{% endblock %}

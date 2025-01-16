@@ -1,0 +1,205 @@
+{% extends "base.html" %} {% block content %}
+<div class="dm-container">
+  <div class="dm-sidebar">
+    <h3>メッセージ一覧</h3>
+    <div id="conversation-list">
+      <!-- 会話リストがここに表示される -->
+      <ul>
+        {% for user in all_users %}
+        <li>
+          <a href="#" class="conversation" data-username="{{ user.username }}">
+            {{ user.username }}
+          </a>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+
+  <div class="dm-main">
+    <input type="hidden" id="receiver" value="{{ selected_user.username }}" />
+    <input
+      type="hidden"
+      id="current-user"
+      value="{{ request.user.username }}"
+    />
+    <div id="messages" class="message-container">
+      <p>会話を選択してください。</p>
+    </div>
+    <form id="dm-form" class="message-form" style="display: none">
+      {% csrf_token %}
+      <input
+        type="text"
+        id="message-input"
+        class="message-input"
+        placeholder="メッセージを入力..."
+      />
+      <button type="submit" class="btn btn-primary">送信</button>
+    </form>
+  </div>
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const messageForm = document.getElementById("dm-form");
+    const messageInput = document.getElementById("message-input");
+    const messagesContainer = document.getElementById("messages");
+    const conversationList = document.getElementById("conversation-list");
+    let selectedUsername = null;
+
+    function addMessageToContainer(message) {
+      const messageDiv = document.createElement("div");
+      messageDiv.className = `message-item ${
+        message.from === "{{ request.user.username }}" ? "sent" : "received"
+      }`;
+      messageDiv.innerHTML = `
+        <div class="message-content">
+          <p>${message.message}</p>
+          <span class="message-time">${new Date(
+            message.timestamp
+          ).toLocaleTimeString()}</span>
+        </div>
+      `;
+      messagesContainer.appendChild(messageDiv);
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    function loadMessages(username) {
+      fetch(`/api/messages/${username}/`)
+        .then((response) => response.json())
+        .then((messages) => {
+          messagesContainer.innerHTML = "";
+          messages.forEach((msg) => {
+            addMessageToContainer(msg);
+          });
+        })
+        .catch((error) => console.error("Error loading messages:", error));
+    }
+
+    // メッセージ送信フォームのイベントリスナー
+    messageForm.addEventListener("submit", function (e) {
+      e.preventDefault();
+      const message = messageInput.value.trim();
+      if (!message || !selectedUsername) return;
+
+      fetch(`/api/messages/${selectedUsername}/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]")
+            .value,
+        },
+        body: JSON.stringify({ message: message }),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          addMessageToContainer(data);
+          messageInput.value = "";
+          loadMessages(selectedUsername); // メッセージ送信後に最新メッセージを取得
+        })
+        .catch((error) => {
+          console.error("Error:", error);
+          alert("メッセージの送信に失敗しました。");
+        });
+    });
+
+    // 会話リストのクリックイベント
+    conversationList.addEventListener("click", function (e) {
+      if (e.target && e.target.classList.contains("conversation")) {
+        selectedUsername = e.target.dataset.username;
+        loadMessages(selectedUsername);
+        document.getElementById("dm-form").style.display = "flex";
+      }
+    });
+
+    // 初期メッセージの読み込み（最初は会話リストが表示される）
+  });
+</script>
+
+<style>
+  .dm-container {
+    display: flex;
+    max-width: 1200px;
+    margin: 20px auto;
+    height: 80vh;
+  }
+
+  .dm-sidebar {
+    width: 300px;
+    border-right: 1px solid #ddd;
+    padding: 20px;
+  }
+
+  .dm-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+  }
+
+  .message-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    background: #f8f9fa;
+  }
+
+  .message-item {
+    margin-bottom: 15px;
+    max-width: 70%;
+  }
+
+  .message-item.sent {
+    margin-left: auto;
+  }
+
+  .message-item.received {
+    margin-right: auto;
+  }
+
+  .message-content {
+    padding: 10px;
+    border-radius: 10px;
+  }
+
+  .sent .message-content {
+    background: #007bff;
+    color: white;
+  }
+
+  .received .message-content {
+    background: white;
+    border: 1px solid #ddd;
+  }
+
+  .message-time {
+    font-size: 0.8em;
+    display: block;
+    margin-top: 5px;
+  }
+
+  .message-form {
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+  }
+
+  .message-input {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+  }
+
+  .conversation {
+    cursor: pointer;
+    padding: 5px;
+    margin-bottom: 10px;
+  }
+
+  .conversation:hover {
+    background-color: #f0f0f0;
+  }
+</style>
+
+{% endblock %}

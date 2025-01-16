@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
+      integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T"
+      crossorigin="anonymous"
+    />
+    <link rel="stylesheet" href="./assets/css/style.css" />
+    <title>Chat</title>
+  </head>
+  <body>
+    <!-- 青い背景色になってるチャットアプリの画面 -->
+    <div id="room">
+      <div class="box-left">
+        <p class="message-box white">こんにちは</p>
+      </div>
+
+      <div class="box-right">
+        <p class="message-box green">こんにちは</p>
+      </div>
+    </div>
+
+    <div class="input-group chat-input">
+      <input
+        id="inputMessage"
+        type="text"
+        class="form-control"
+        placeholder="メッセージを入力してください"
+      />
+      <div class="input-group-append">
+        <button id="sendBtn" class="btn btn-primary" type="button">送信</button>
+      </div>
+    </div>
+
+    <!-- WebSocket とメッセージ送受信の処理 -->
+    <script>
+      // WebSocket接続設定
+      const roomName = "chatroom"; // 固定ルーム名（変更可能）
+      const chatSocket = new WebSocket(
+        "ws://" + window.location.host + "/ws/chat/" + roomName + "/"
+      );
+
+      // メッセージ送信
+      document.getElementById("sendBtn").onclick = function () {
+        const inputMessage = document.getElementById("inputMessage");
+        const message = inputMessage.value;
+        if (message) {
+          chatSocket.send(
+            JSON.stringify({
+              message: message,
+            })
+          );
+          inputMessage.value = ""; // 送信後に入力フィールドをクリア
+        }
+      };
+
+      // サーバーからメッセージを受信したときの処理
+      chatSocket.onmessage = function (e) {
+        const data = JSON.parse(e.data);
+        const message = data.message;
+
+        // メッセージを画面に追加
+        const messageElement = document.createElement("div");
+        messageElement.textContent = message;
+
+        // メッセージの送信元を確認して、スタイルを変える
+        if (messageElement.textContent === "こんにちは") {
+          messageElement.classList.add("white");
+        } else {
+          messageElement.classList.add("green");
+        }
+
+        document.getElementById("room").appendChild(messageElement);
+      };
+
+      // WebSocket接続が閉じられたとき
+      chatSocket.onclose = function (e) {
+        console.error("WebSocket接続が切断されました:", e);
+      };
+    </script>
+
+    <script src="../static/js/new.js"></script>
+  </body>
+</html>

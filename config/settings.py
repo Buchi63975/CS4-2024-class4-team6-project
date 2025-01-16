@@ -38,11 +38,11 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.sites",
+    "channels",
     "teamenshu.apps.teamenshuConfig",
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
-    "channels",
 ]
 
 MIDDLEWARE = [
@@ -149,5 +149,13 @@ SITE_ID = 1
 LOGIN_REDIRECT_URL = "home"
 ACCOUNT_LOGOUT_REDIRECT_URL = "/accounts/login/"
 
-ASGI_APPLICATION = "manage.py:application"
-CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
+ASGI_APPLICATION = "config.asgi.application"
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+        "CONFIG": {
+            "hosts": [("127.0.0.1", 6379)],
+        },
+    }
+}
+ASGI_APPLICATION = "config.asgi.application"

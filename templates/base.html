@@ -134,6 +134,74 @@
         width: 100%;
         left: 0;
       }
+
+      #chat-box {
+        position: fixed;
+        bottom: 10px;
+        right: 10px;
+        width: 300px;
+        background-color: white;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+        display: flex; /* 初期状態で非表示 */
+        flex-direction: column;
+      }
+
+      #chat-header {
+        background-color: #1a73e8;
+        color: white;
+        padding: 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-weight: bold;
+        cursor: pointer;
+      }
+
+      #chat-header button {
+        background: none;
+        border: none;
+        color: white;
+        font-size: 16px;
+        cursor: pointer;
+      }
+
+      #chat-content {
+        flex-grow: 1;
+        padding: 10px;
+        overflow-y: auto;
+        max-height: 200px;
+        border-top: 1px solid #ccc;
+        border-bottom: 1px solid #ccc;
+      }
+
+      #chat-input {
+        display: flex;
+        padding: 10px;
+      }
+
+      #chat-input input {
+        flex-grow: 1;
+        padding: 5px;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        margin-right: 5px;
+      }
+
+      #chat-input button {
+        background-color: #1a73e8;
+        color: white;
+        border: none;
+        border-radius: 3px;
+        padding: 5px 10px;
+        cursor: pointer;
+      }
+
+      #chat-input button:hover {
+        background-color: #1557b0;
+      }
     </style>
     {% block customcss %} {% endblock customcss %}
     <title>SNSアプリサンプル</title>
@@ -163,16 +231,35 @@
               <a class="nav-link" href="/accounts/logout/">ログアウト</a>
               <a
                 class="nav-link"
-                href="{% url 'direct_messages' request.user.username %}"
+                href="{% if request.user.is_authenticated %}{% url 'direct_messages' request.user.username %}{% else %}{% url 'login' %}{% endif %}"
               >
                 <i class="fas fa-envelope"></i> DM
               </a>
+
               <a
                 class="nav-link btn btn-success"
                 href="{% url 'create' %}"
                 role="button"
                 >投稿</a
               >
+            </div>
+            <!-- チャット枠 -->
+            <div id="chat-box">
+              <div id="chat-header">
+                <span>チャット</span>
+                <button id="chat-close" aria-label="閉じる">&times;</button>
+              </div>
+              <div id="chat-content">
+                <!-- メッセージ表示エリア -->
+              </div>
+              <div id="chat-input">
+                <input
+                  type="text"
+                  id="inputMessage"
+                  placeholder="メッセージを入力"
+                />
+                <button id="sendBtn">送信</button>
+              </div>
             </div>
           </div>
           <div>{{request.user.username}}さん</div>
@@ -190,5 +277,38 @@
       integrity="sha384-j0CNLUeiqtyaRmlzUHCPZ+Gy5fQu0dQ6eZ/xAww941Ai1SxSY+0EQqNXNE6DZiVc"
       crossorigin="anonymous"
     ></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const chatBox = document.getElementById("chat-box");
+        const chatHeader = document.getElementById("chat-header");
+        const chatClose = document.getElementById("chat-close");
+        const sendBtn = document.getElementById("sendBtn");
+        const inputMessage = document.getElementById("inputMessage");
+        const chatContent = document.getElementById("chat-content");
+
+        // チャットボックスを開く・閉じる
+        chatHeader.addEventListener("click", function () {
+          chatBox.style.display =
+            chatBox.style.display === "none" ? "flex" : "none";
+        });
+
+        chatClose.addEventListener("click", function () {
+          chatBox.style.display = "none";
+        });
+
+        // メッセージを送信する
+        sendBtn.addEventListener("click", function () {
+          const message = inputMessage.value.trim();
+          if (message) {
+            const messageElement = document.createElement("div");
+            messageElement.textContent = message;
+            messageElement.style.marginBottom = "10px";
+            chatContent.appendChild(messageElement);
+            inputMessage.value = "";
+            chatContent.scrollTop = chatContent.scrollHeight; // スクロールを下に
+          }
+        });
+      });
+    </script>
   </body>
 </html>

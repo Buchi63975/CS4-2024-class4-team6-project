@@ -34,13 +34,13 @@
         message.from === "{{ request.user.username }}" ? "sent" : "received"
       }`;
       messageDiv.innerHTML = `
-            <div class="message-content">
-                <p>${message.message}</p>
-                <span class="message-time">${new Date(
-                  message.timestamp
-                ).toLocaleTimeString()}</span>
-            </div>
-        `;
+        <div class="message-content">
+          <p>${message.message}</p>
+          <span class="message-time">${new Date(
+            message.timestamp
+          ).toLocaleTimeString()}</span>
+        </div>
+      `;
       messagesContainer.appendChild(messageDiv);
       messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
@@ -57,6 +57,7 @@
         .catch((error) => console.error("Error loading messages:", error));
     }
 
+    // メッセージ送信フォームのイベントリスナー
     messageForm.addEventListener("submit", function (e) {
       e.preventDefault();
       const message = messageInput.value.trim();
@@ -71,15 +72,11 @@
         },
         body: JSON.stringify({ message: message }),
       })
-        .then((response) => {
-          if (!response.ok) {
-            throw new Error("Network response was not ok");
-          }
-          return response.json();
-        })
+        .then((response) => response.json())
         .then((data) => {
           addMessageToContainer(data);
           messageInput.value = "";
+          loadMessages(); // メッセージ送信後に最新メッセージを取得
         })
         .catch((error) => {
           console.error("Error:", error);
